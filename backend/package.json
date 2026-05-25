@@ -1,0 +1,18 @@
+{
+  "name": "pocket-option-ai-backend",
+  "version": "1.0.0",
+  "description": "Real market backtest & AI strategies for binary options",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "train": "node models/tradingModel.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "ws": "^8.14.2",
+    "@tensorflow/tfjs-node": "^4.15.0",
+    "binance-api-node": "^0.12.5",
+    "technicalindicators": "^3.1.0"
+  }
+}
