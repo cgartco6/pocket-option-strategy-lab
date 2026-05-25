@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pocket Option AI Lab | Live Strategies</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    <style>
+        * { box-sizing: border-box; font-family: system-ui; }
+        body { background: #0a1922; color: #eef; margin: 0; padding: 20px; }
+        .container { max-width: 1400px; margin: auto; }
+        .grid { display: flex; flex-wrap: wrap; gap: 24px; }
+        .card { background: #11212e; border-radius: 28px; padding: 20px; flex: 1 1 45%; box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+        h1 { margin: 0 0 8px; }
+        .badge { background: #ff9800; padding: 4px 12px; border-radius: 30px; font-size: 0.8rem; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #2a3b44; }
+        .win { color: #4caf50; }
+        .loss { color: #f44336; }
+        button { background: #ff9800; border: none; padding: 8px 16px; border-radius: 40px; cursor: pointer; font-weight: bold; }
+        #liveSignal { background: #1e2f3a; padding: 12px; border-radius: 28px; margin-top: 20px; font-family: monospace; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📈 Pocket Option AI Lab <span class="badge">Real Binance Data + TensorFlow AI</span></h1>
+    <button id="runBacktest">🚀 Run Historical Backtest</button>
+    <div class="grid" style="margin-top: 24px;">
+        <div class="card">
+            <h2>📊 Strategy Performance</h2>
+            <canvas id="performanceChart" height="250"></canvas>
+            <div id="summaryTable" style="overflow-x: auto; margin-top: 16px;">
+                <table><thead><tr><th>Strategy</th><th>Final Balance</th><th>Win Rate</th><th>Trades</th></tr></thead><tbody id="tableBody"></tbody></table>
+            </div>
+        </div>
+        <div class="card">
+            <h2>🤖 AI Live Signals (WebSocket)</h2>
+            <div id="liveSignal">Waiting for real‑time signal...</div>
+            <canvas id="equityCompare" height="200"></canvas>
+        </div>
+    </div>
+</div>
+<script>
+    let chart1, chart2;
+    const API_URL = 'http://localhost:3000';
+    const WS_URL = 'ws://localhost:8081';
+
+    document.getElementById('runBacktest').onclick = async () => {
+        const res = await fetch(`${API_URL}/api/backtest`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol: 'BTCUSDT', interval: '1m', limit: 280 })
+        });
+        const data = await res.json();
+        displayResults(data);
+    };
+
+    function displayResults(results) {
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        let myResult = null, katieResult = null;
+        results.forEach(r => {
+            const row = `<tr><td>${r.name}</td><td>$${r.finalEquity.toFixed(2)}</td><td class="${r.winRate>=50?'win':'loss'}">${r.winRate.toFixed(1)}%</td><td>${r.trades}</td></tr>`;
+            tbody.insertAdjacentHTML('beforeend', row);
+            if (r.name.includes('MY Custom')) myResult = r;
+            if (r.name.includes("Katie's")) katieResult = r;
+        });
+        if (chart1) chart1.destroy();
+        const labels = results.map(r => r.name.substring(0,20));
+        const equities = results.map(r => r.finalEquity);
+        chart1 = new Chart(document.getElementById('performanceChart'), {
+            type: 'bar', data: { labels, datasets: [{ label: 'Final Equity ($)', data: equities, backgroundColor: '#ff9800' }] }
+        });
+        if(myResult && katieResult && chart2) chart2.destroy();
+        if(myResult && katieResult) {
+            chart2 = new Chart(document.getElementById('equityCompare'), {
+                type: 'line', data: { labels: ['My AI', "Katie's Best"], datasets: [{ label: 'Equity', data: [myResult.finalEquity, katieResult.finalEquity], backgroundColor: '#4caf50' }] }
+            });
+        }
+    }
+
+    // WebSocket live signal
+    const ws = new WebSocket(WS_URL);
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        document.getElementById('liveSignal').innerHTML = `🤖 AI Signal: <strong>${data.action.toUpperCase()}</strong> | Confidence: ${(data.confidence*100).toFixed(1)}% | Price: $${data.price}`;
+    };
+    ws.onerror = () => document.getElementById('liveSignal').innerHTML = '⚠️ WebSocket error – ensure backend running';
+</script>
+</body>
+</html>
