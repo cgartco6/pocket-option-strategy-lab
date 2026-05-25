@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Pocket Option Strategy Lab | Katie vs Elite Strategies | Real Market Backtest</title>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Font Awesome (icons) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        body {
+            background: #f4f7fc;
+            margin: 0;
+            padding: 24px 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 1.9rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #1A2A3A, #0F2027);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin: 0 0 6px 0;
+        }
+        .sub {
+            color: #2c5f7a;
+            border-left: 4px solid #ff9800;
+            padding-left: 16px;
+            margin-bottom: 28px;
+            font-weight: 500;
+        }
+        .dashboard {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px;
+        }
+        .panel {
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.08);
+            padding: 20px 24px;
+            transition: all 0.2s;
+        }
+        .panel-full {
+            flex: 1 1 100%;
+        }
+        .panel-half {
+            flex: 1 1 calc(50% - 24px);
+            min-width: 320px;
+        }
+        .panel-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 2px solid #eef2f6;
+            padding-bottom: 10px;
+        }
+        .badge {
+            background: #0b2b38;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .strategy-selector {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+        select {
+            padding: 10px 16px;
+            border-radius: 40px;
+            border: 1px solid #ccd7e4;
+            background: white;
+            font-weight: 500;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
+            gap: 14px;
+            margin-top: 18px;
+        }
+        .stat-card {
+            background: #f8fafc;
+            border-radius: 24px;
+            padding: 12px 16px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.7rem;
+            font-weight: 800;
+            color: #1f3b4c;
+        }
+        .stat-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #5c7c8a;
+        }
+        .comparison-metrics {
+            display: flex;
+            gap: 20px;
+            justify-content: space-around;
+            background: #eef2fa;
+            border-radius: 28px;
+            padding: 14px 20px;
+            margin-bottom: 20px;
+        }
+        .vs-badge {
+            background: #ff9800;
+            border-radius: 40px;
+            padding: 6px 14px;
+            color: white;
+            font-weight: bold;
+        }
+        canvas { max-height: 380px; width: 100%; }
+        .footnote {
+            font-size: 0.75rem;
+            text-align: center;
+            margin-top: 36px;
+            color: #5a6e7c;
+        }
+        button {
+            background: none;
+            border: none;
+        }
+        .refresh-note {
+            background: #e9ecef;
+            border-radius: 24px;
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        @media (max-width: 760px) {
+            body { padding: 16px; }
+            .panel-half { flex: 1 1 100%; }
+        }
+        hr { margin: 20px 0; }
+        .win { color: #2e7d64; }
+        .loss { color: #c44536; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap;">
+        <div>
+            <h1><i class="fas fa-chart-line" style="color:#ff9800"></i> Pocket Option: Strategy Warfare</h1>
+            <div class="sub">Katie Tutorials • $42k in Minutes • 3m=$20k • 100% Win Method • Old but Gold • $1 → $33,884</div>
+        </div>
+        <div class="refresh-note"><i class="fas fa-database"></i> Real-time Binance BTCUSDT 1m data • Live backtest</div>
+    </div>
+    
+    <div class="dashboard">
+        <!-- LEFT: individual strategy chart + selector -->
+        <div class="panel panel-half">
+            <div class="panel-title"><i class="fas fa-chart-simple"></i> Strategy Equity Curve <span class="badge">select below</span></div>
+            <div class="strategy-selector">
+                <select id="strategySelect"></select>
+            </div>
+            <canvas id="singleChart" width="400" height="300" style="max-height: 340px;"></canvas>
+            <div id="singleStats" class="stats-grid"></div>
+        </div>
+
+        <!-- RIGHT: My Custom Strategy vs Katie's Best (head-to-head) -->
+        <div class="panel panel-half">
+            <div class="panel-title"><i class="fas fa-crosshairs"></i> 🔥 MY STRATEGY vs KATIE'S BEST</div>
+            <div class="comparison-metrics">
+                <div><span class="vs-badge" style="background:#1e466e;">My Strategy</span> <span id="myFinalEquity">—</span></div>
+                <div><i class="fas fa-fist-raised"></i> VS</div>
+                <div><span class="vs-badge" style="background:#b85c00;">Katie's Best</span> <span id="katieFinalEquity">—</span></div>
+            </div>
+            <canvas id="compareChart" width="400" height="280" style="max-height: 280px;"></canvas>
+            <div style="margin-top: 18px; display: flex; gap: 16px; justify-content: space-between;">
+                <div><i class="fas fa-chart-line"></i> <strong>My Win Rate:</strong> <span id="myWinrate">—</span>%</div>
+                <div><i class="fas fa-chart-line"></i> <strong>Katie Win Rate:</strong> <span id="katieWinrate">—</span>%</div>
+                <div><i class="fas fa-trophy"></i> <strong>Outcome:</strong> <span id="headToHead">—</span></div>
+            </div>
+        </div>
+
+        <!-- full table summary all strategies -->
+        <div class="panel panel-full">
+            <div class="panel-title"><i class="fas fa-table-list"></i> All Strategies Performance (Real Market, 3-min expiry, 80% payout)</div>
+            <div style="overflow-x: auto;">
+                <table id="summaryTable" style="width:100%; border-collapse: collapse; font-size: 0.85rem;">
+                    <thead style="background:#eef2f6;"><tr><th>Strategy Name</th><th>Final Balance ($)</th><th>Total Return %</th><th>Win Rate</th><th>Total Trades</th><th>Profit Factor</th></tr></thead>
+                    <tbody id="summaryBody"></tbody>
+                </table>
+            </div>
+            <div class="footnote">
+                <i class="fas fa-info-circle"></i> Backtest on real BTCUSDT 1m candles (Binance). Each trade: $200 risk (except $1→33,884 uses dynamic risk 6% of equity). Expiry: 3 candles ahead. Payout 80% on win, 0% on loss. Start capital: $10,000.
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --------------------------------------------------------------
+    // 1. FETCH REAL MARKET DATA (Binance API)
+    // --------------------------------------------------------------
+    async function fetchMarketData() {
+        const url = 'https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=280';
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!Array.isArray(data)) throw new Error('Binance data error');
+        return data.map(candle => ({
+            time: candle[0],
+            open: parseFloat(candle[1]),
+            high: parseFloat(candle[2]),
+            low: parseFloat(candle[3]),
+            close: parseFloat(candle[4]),
+            volume: parseFloat(candle[5])
+        }));
+    }
+
+    // helpers indicators
+    function calcEMA(values, period) {
+        const k = 2 / (period + 1);
+        let ema = values[0];
+        const result = [ema];
+        for (let i = 1; i < values.length; i++) {
+            ema = values[i] * k + ema * (1 - k);
+            result.push(ema);
+        }
+        return result;
+    }
+
+    function calcRSI(closes, period = 14) {
+        let gains = 0, losses = 0;
+        const rsi = new Array(closes.length).fill(50);
+        for (let i = 1; i <= period && i < closes.length; i++) {
+            const diff = closes[i] - closes[i-1];
+            if (diff >= 0) gains += diff; else losses -= diff;
+        }
+        let avgGain = gains / period, avgLoss = losses / period;
+        rsi[period] = avgLoss === 0 ? 100 : 100 - (100 / (1 + avgGain/avgLoss));
+        for (let i = period+1; i < closes.length; i++) {
+            const diff = closes[i] - closes[i-1];
+            let gain = diff > 0 ? diff : 0, loss = diff < 0 ? -diff : 0;
+            avgGain = (avgGain * (period-1) + gain) / period;
+            avgLoss = (avgLoss * (period-1) + loss) / period;
+            rsi[i] = avgLoss === 0 ? 100 : 100 - (100 / (1 + avgGain/avgLoss));
+        }
+        return rsi;
+    }
+
+    function calcStochastic(closes, highs, lows, kPeriod=14, dPeriod=3) {
+        const stochK = [];
+        for (let i = kPeriod-1; i < closes.length; i++) {
+            let lowMin = Math.min(...lows.slice(i-kPeriod+1, i+1));
+            let highMax = Math.max(...highs.slice(i-kPeriod+1, i+1));
+            let k = ((closes[i] - lowMin) / (highMax - lowMin)) * 100;
+            stochK.push(isNaN(k) ? 50 : k);
+        }
+        for (let i = 0; i < kPeriod-1; i++) stochK.unshift(50);
+        const stochD = [];
+        for (let i = 0; i < stochK.length; i++) {
+            if(i < dPeriod-1) stochD.push(50);
+            else {
+                let sum = 0;
+                for(let j=0;j<dPeriod;j++) sum += stochK[i-j];
+                stochD.push(sum/dPeriod);
+            }
+        }
+        return { k: stochK, d: stochD };
+    }
+
+    function calcMACD(closes, fast=12, slow=26, signal=9) {
+        const emaFast = calcEMA(closes, fast);
+        const emaSlow = calcEMA(closes, slow);
+        const macdLine = emaFast.map((v,i) => v - emaSlow[i]);
+        const signalLine = calcEMA(macdLine, signal);
+        const histogram = macdLine.map((v,i) => v - signalLine[i]);
+        return { macdLine, signalLine, histogram };
+    }
+
+    // Universal Backtest engine: executes trades from index 0 to len-expiryOffset (3)
+    // each strategy function returns { action: 'call' or 'put' or 'none', riskPercent? only for dynamic strategies }
+    function runBacktest(candles, strategyFn, initialCapital = 10000, fixedRisk = 200, useDynamicRisk = false) {
+        const closes = candles.map(c => c.close);
+        const highs = candles.map(c => c.high);
+        const lows = candles.map(c => c.low);
+        const len = candles.length;
+        const expiryOffset = 3; // 3 minutes expiry
+        let equity = initialCapital;
+        let equityCurve = [equity];
+        let trades = 0, wins = 0, loss = 0;
+        let totalProfit = 0;
+        let currentEquity = initialCapital;
+
+        for (let i = 0; i < len - expiryOffset; i++) {
+            const currentPrice = closes[i];
+            const futurePrice = closes[i + expiryOffset];
+            let riskAmount = fixedRisk;
+            if (useDynamicRisk) {
+                riskAmount = currentEquity * 0.06;  // 6% dynamic for $1->33884 style
+                if (riskAmount < 1) riskAmount = 1;
+            }
+            const signal = strategyFn(candles, i, { closes, highs, lows, currentEquity });
+            if (signal.action !== 'call' && signal.action !== 'put') continue;
+            
+            let won = false;
+            if (signal.action === 'call' && futurePrice > currentPrice) won = true;
+            if (signal.action === 'put' && futurePrice < currentPrice) won = true;
+            trades++;
+            let pnl = 0;
+            if (won) {
+                pnl = riskAmount * 0.80;  // 80% payout typical binary
+                wins++;
+                totalProfit += pnl;
+            } else {
+                pnl = -riskAmount;
+                totalProfit -= riskAmount;
+            }
+            currentEquity += pnl;
+            equityCurve.push(currentEquity);
+        }
+        while(equityCurve.length < candles.length) equityCurve.push(currentEquity);
+        const winRate = trades === 0 ? 0 : (wins / trades) * 100;
+        const totalReturn = ((currentEquity - initialCapital) / initialCapital) * 100;
+        return { finalEquity: currentEquity, equityCurve, winRate, trades, totalReturn, profitFactor: totalProfit > 0 ? (totalProfit / Math.abs(totalProfit - totalProfit)) : 0 };
+    }
+
+    // --------------------------------------------------------------
+    // STRATEGY DEFINITIONS (All named based on Katie & user request)
+    // --------------------------------------------------------------
+    
+    // 1. Katie's Best Winning Strategy (RSI + EMA combo, high confidence)
+    function katieBestStrategy(candles, idx, aux) {
+        if(idx < 30) return { action: 'none' };
+        const closes = aux.closes;
+        const rsiVals = calcRSI(closes, 14);
+        const ema20 = calcEMA(closes, 20);
+        const price = closes[idx];
+        const rsi = rsiVals[idx];
+        const emaVal = ema20[idx];
+        if(rsi < 35 && price > emaVal * 0.998) return { action: 'call' };
+        if(rsi > 70 && price < emaVal * 1.002) return { action: 'put' };
+        return { action: 'none' };
+    }
+    
+    // 2. MY OWN BEST STRATEGY (Advanced: MACD cross + Stochastic oversold/overbought)
+    function myEliteStrategy(candles, idx, aux) {
+        if(idx < 35) return { action: 'none' };
+        const closes = aux.closes, highs = aux.highs, lows = aux.lows;
+        const macd = calcMACD(closes, 8, 17, 5);
+        const stoch = calcStochastic(closes, highs, lows, 10, 3);
+        const hist = macd.histogram[idx];
+        const prevHist = macd.histogram[idx-1];
+        const stochK = stoch.k[idx];
+        if(hist > 0 && prevHist <= 0 && stochK < 30) return { action: 'call' };
+        if(hist < 0 && prevHist >= 0 && stochK > 70) return { action: 'put' };
+        return { action: 'none' };
+    }
+    
+    // 3. $42,185 in Minutes Strategy (Bollinger breakout + momentum)
+    function fortyTwoKStrategy(candles, idx, aux) {
+        if(idx < 25) return { action: 'none' };
+        const closes = aux.closes;
+        const period = 20;
+        let sum = 0, sqSum = 0;
+        for(let i=idx-period+1; i<=idx; i++) { sum += closes[i]; sqSum += closes[i]*closes[i]; }
+        const mean = sum/period;
+        const std = Math.sqrt(sqSum/period - mean*mean);
+        const upper = mean + std*2;
+        const lower = mean - std*2;
+        const price = closes[idx];
+        if(price <= lower && closes[idx]-closes[idx-1] > 0) return { action: 'call' };
+        if(price >= upper && closes[idx]-closes[idx-1] < 0) return { action: 'put' };
+        return { action: 'none' };
+    }
+    
+    // 4. 3 Minutes = $20,455 Strategy (3-min rate of change strong)
+    function threeMinTwentyK(candles, idx, aux) {
+        if(idx < 5) return { action: 'none' };
+        const closes = aux.closes;
+        const roc3 = ((closes[idx] - closes[idx-3]) / closes[idx-3]) * 100;
+        if(roc3 > 0.35) return { action: 'call' };
+        if(roc3 < -0.35) return { action: 'put' };
+        return { action: 'none' };
+    }
+    
+    // 5. My 100% Win Method (ultra-conservative CCI + Williams %R, high win rate but low frequency)
+    function hundredPercentWin(candles, idx, aux) {
+        if(idx < 20) return { action: 'none' };
+        const closes = aux.closes, highs = aux.highs, lows = aux.lows;
+        const tp = 20;
+        let sumTP = 0;
+        for(let i=idx-tp+1; i<=idx; i++) sumTP += (highs[i]+lows[i]+closes[i])/3;
+        const typicalAvg = sumTP/tp;
+        let meanDev = 0;
+        for(let i=idx-tp+1; i<=idx; i++) {
+            let tpVal = (highs[i]+lows[i]+closes[i])/3;
+            meanDev += Math.abs(tpVal - typicalAvg);
+        }
+        meanDev /= tp;
+        const cci = ( ( (highs[idx]+lows[idx]+closes[idx])/3 - typicalAvg ) / (0.015*meanDev) );
+        const high14 = Math.max(...highs.slice(idx-13, idx+1));
+        const low14 = Math.min(...lows.slice(idx-13, idx+1));
+        const wr = ((high14 - closes[idx]) / (high14 - low14)) * -100;
+        if(cci < -120 && wr < -85) return { action: 'call' };
+        if(cci > 120 && wr > -15) return { action: 'put' };
+        return { action: 'none' };
+    }
+    
+    // 6. Old But Gold Strategy (Stochastic crossover + SMA)
+    function oldButGold(candles, idx, aux) {
+        if(idx < 20) return { action: 'none' };
+        const closes = aux.closes, highs = aux.highs, lows = aux.lows;
+        const stoch = calcStochastic(closes, highs, lows, 14, 3);
+        const k = stoch.k[idx], d = stoch.d[idx];
+        const smaShort = calcEMA(closes, 5)[idx];
+        const price = closes[idx];
+        if(k > d && k < 35 && price > smaShort) return { action: 'call' };
+        if(k < d && k > 75 && price < smaShort) return { action: 'put' };
+        return { action: 'none' };
+    }
+    
+    // 7. $1 to $33,884 Strategy (aggressive compounding + trend following, dynamic risk 6% within backtest)
+    function oneToThirtyEight(candles, idx, aux) {
+        if(idx < 18) return { action: 'none' };
+        const closes = aux.closes;
+        const emaFast = calcEMA(closes, 5)[idx];
+        const emaSlow = calcEMA(closes, 13)[idx];
+        const price = closes[idx];
+        const prevEmaFast = calcEMA(closes, 5)[idx-1];
+        const prevEmaSlow = calcEMA(closes, 13)[idx-1];
+        if(emaFast > emaSlow && prevEmaFast <= prevEmaSlow && price > emaFast) return { action: 'call' };
+        if(emaFast < emaSlow && prevEmaFast >= prevEmaSlow && price < emaFast) return { action: 'put' };
+        return { action: 'none' };
+    }
+    
+    // ------------------------------------------------------------------
+    // EXECUTE ALL BACKTESTS
+    // ------------------------------------------------------------------
+    async function runAll() {
+        const loadingDiv = document.createElement('div');
+        document.body.style.opacity = '0.7';
+        try {
+            const candles = await fetchMarketData();
+            if(!candles || candles.length < 70) throw new Error('Insufficient data');
+            
+            // Fixed risk 200 for most (except dynamic $1->33,884 uses its own dynamic flag)
+            const strategyList = [
+                { name: "Katie's Best Winning Strategy", fn: katieBestStrategy, dynamic: false },
+                { name: "🔥 MY Custom Best Strategy", fn: myEliteStrategy, dynamic: false },
+                { name: "$42,185 in Minutes Strategy", fn: fortyTwoKStrategy, dynamic: false },
+                { name: "3 Minutes = $20,455 Strategy", fn: threeMinTwentyK, dynamic: false },
+                { name: "My 100% Win Method", fn: hundredPercentWin, dynamic: false },
+                { name: "Old But Gold Strategy", fn: oldButGold, dynamic: false },
+                { name: "$1 to $33,884 Strategy", fn: oneToThirtyEight, dynamic: true }  // dynamic 6% risk
+            ];
+            
+            const results = [];
+            for (let strat of strategyList) {
+                const res = runBacktest(candles, strat.fn, 10000, 200, strat.dynamic);
+                results.push({
+                    name: strat.name,
+                    finalEquity: res.finalEquity,
+                    totalReturn: res.totalReturn,
+                    winRate: res.winRate,
+                    trades: res.trades,
+                    profitFactor: res.profitFactor,
+                    equityCurve: res.equityCurve
+                });
+            }
+            
+            // Special reference: extract Katie and My Strategy
+            const katieResult = results.find(r => r.name.includes("Katie's Best"));
+            const myResult = results.find(r => r.name.includes("MY Custom"));
+            if (!katieResult || !myResult) throw new Error("Missing key strategies");
+            
+            // Populate dropdown
+            const selectEl = document.getElementById('strategySelect');
+            selectEl.innerHTML = '';
+            results.forEach((r, idx) => {
+                const opt = document.createElement('option');
+                opt.value = idx;
+                opt.textContent = r.name;
+                selectEl.appendChild(opt);
+            });
+            
+            // render single chart (first strategy by default)
+            let currentChart = null, compareChart = null;
+            function renderSingleChart(index) {
+                const strat = results[index];
+                const ctx = document.getElementById('singleChart').getContext('2d');
+                if (currentChart) currentChart.destroy();
+                currentChart = new Chart(ctx, {
+                    type: 'line', data: { labels: Array.from({length: strat.equityCurve.length}, (_,i)=>i), datasets: [{ label: strat.name + ' equity', data: strat.equityCurve, borderColor: '#ff8c42', fill: false, tension: 0.2 }] },
+                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'top' } } }
+                });
+                document.getElementById('singleStats').innerHTML = `
+                    <div class="stat-card"><div class="stat-value">$${strat.finalEquity.toFixed(2)}</div><div class="stat-label">Final Balance</div></div>
+                    <div class="stat-card"><div class="stat-value">${strat.totalReturn.toFixed(1)}%</div><div class="stat-label">Return</div></div>
+                    <div class="stat-card"><div class="stat-value">${strat.winRate.toFixed(1)}%</div><div class="stat-label">Win Rate</div></div>
+                    <div class="stat-card"><div class="stat-value">${strat.trades}</div><div class="stat-label">Trades</div></div>
+                `;
+            }
+            selectEl.addEventListener('change', (e) => renderSingleChart(parseInt(e.target.value)));
+            renderSingleChart(0);
+            
+            // head-to-head comparison chart (my vs katie)
+            const cmpCtx = document.getElementById('compareChart').getContext('2d');
+            if (compareChart) compareChart.destroy();
+            compareChart = new Chart(cmpCtx, {
+                type: 'line', data: { labels: Array.from({length: myResult.equityCurve.length}, (_,i)=>i), datasets: [
+                    { label: 'MY Strategy', data: myResult.equityCurve, borderColor: '#1e466e', borderWidth: 2.5, fill: false },
+                    { label: "Katie's Best", data: katieResult.equityCurve, borderColor: '#b85c00', borderWidth: 2.5, fill: false }
+                ] }, options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: $${ctx.raw.toFixed(2)}` } } } }
+            });
+            document.getElementById('myFinalEquity').innerHTML = `$${myResult.finalEquity.toFixed(2)}`;
+            document.getElementById('katieFinalEquity').innerHTML = `$${katieResult.finalEquity.toFixed(2)}`;
+            document.getElementById('myWinrate').innerHTML = myResult.winRate.toFixed(1);
+            document.getElementById('katieWinrate').innerHTML = katieResult.winRate.toFixed(1);
+            const headResult = myResult.finalEquity > katieResult.finalEquity ? '✅ MY STRATEGY WINS' : (myResult.finalEquity < katieResult.finalEquity ? '⚠️ Katie leads' : 'TIE');
+            document.getElementById('headToHead').innerHTML = headResult;
+            
+            // summary table
+            const tbody = document.getElementById('summaryBody');
+            tbody.innerHTML = '';
+            results.forEach(r => {
+                const row = `<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:12px 6px;"><strong>${r.name}</strong></td><td>$${r.finalEquity.toFixed(2)}</td><td style="color:${r.totalReturn>=0?'#2e7d64':'#c44536'}">${r.totalReturn>=0?'+':''}${r.totalReturn.toFixed(1)}%</td><td>${r.winRate.toFixed(1)}%</td><td>${r.trades}</td><td>${r.profitFactor>0?r.profitFactor.toFixed(2):'0.00'}</td></tr>`;
+                tbody.insertAdjacentHTML('beforeend', row);
+            });
+            
+            document.body.style.opacity = '1';
+        } catch(err) {
+            document.body.style.opacity = '1';
+            document.getElementById('summaryBody').innerHTML = `<tr><td colspan="6">Error loading market data: ${err.message}. Refresh or try later.</td></tr>`;
+            console.error(err);
+        }
+    }
+    runAll();
+</script>
+</body>
+</html>
